@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeStory - AI Story Generator</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 VibeStory</h1>
+            <p class="subtitle">AI-Powered Image-to-Story Generator with Azure OpenAI</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Navigation Tabs -->
+            <div class="tab-container">
+                <button class="tab-btn active" onclick="showTab('text-tab')">Text Prompt</button>
+                <button class="tab-btn" onclick="showTab('image-tab')">Image Upload</button>
+            </div>
+
+            <!-- Text-based Story Generation -->
+            <div id="text-tab" class="tab-content active">
+                <div class="story-form">
+                    <h2>Generate Story from Text</h2>
+                    <form id="textStoryForm">
+                        <div class="form-group">
+                            <label for="prompt">Story Prompt:</label>
+                            <textarea id="prompt" name="prompt" placeholder="Enter your story idea, theme, or starting point..." required></textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="genre">Genre:</label>
+                                <select id="genre" name="genre">
+                                    <option value="general">General</option>
+                                    <option value="fantasy">Fantasy</option>
+                                    <option value="sci-fi">Science Fiction</option>
+                                    <option value="mystery">Mystery</option>
+                                    <option value="romance">Romance</option>
+                                    <option value="adventure">Adventure</option>
+                                    <option value="horror">Horror</option>
+                                    <option value="comedy">Comedy</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="length">Length:</label>
+                                <select id="length" name="length">
+                                    <option value="short">Short (200-400 words)</option>
+                                    <option value="medium">Medium (500-800 words)</option>
+                                    <option value="long">Long (900-1500 words)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="tone">Tone:</label>
+                                <select id="tone" name="tone">
+                                    <option value="neutral">Neutral</option>
+                                    <option value="cheerful">Cheerful</option>
+                                    <option value="dramatic">Dramatic</option>
+                                    <option value="mysterious">Mysterious</option>
+                                    <option value="humorous">Humorous</option>
+                                    <option value="dark">Dark</option>
+                                    <option value="uplifting">Uplifting</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn" id="generateTextBtn">Generate Story</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Image-based Story Generation -->
+            <div id="image-tab" class="tab-content">
+                <div class="story-form">
+                    <h2>Generate Story from Image</h2>
+                    <form id="imageStoryForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="imageFile">Upload Image:</label>
+                            <div class="file-upload-container">
+                                <input type="file" id="imageFile" name="image" accept="image/*" required>
+                                <div class="file-upload-preview" id="imagePreview"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="imageDescription">Additional Context (Optional):</label>
+                            <textarea id="imageDescription" name="image_description" placeholder="Add any additional context or details about the image to help with story generation..."></textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="theme">Story Theme:</label>
+                                <select id="theme" name="theme">
+                                    <option value="general">General</option>
+                                    <option value="horror">Horror</option>
+                                    <option value="sci-fi">Science Fiction</option>
+                                    <option value="kids">Children's Story</option>
+                                    <option value="romance">Romance</option>
+                                    <option value="mystery">Mystery</option>
+                                    <option value="adventure">Adventure</option>
+                                    <option value="fantasy">Fantasy</option>
+                                    <option value="comedy">Comedy</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="imageLength">Length:</label>
+                                <select id="imageLength" name="length">
+                                    <option value="short">Short (200-400 words)</option>
+                                    <option value="medium">Medium (500-800 words)</option>
+                                    <option value="long">Long (900-1500 words)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="imageTone">Tone:</label>
+                                <select id="imageTone" name="tone">
+                                    <option value="creative">Creative</option>
+                                    <option value="dramatic">Dramatic</option>
+                                    <option value="whimsical">Whimsical</option>
+                                    <option value="mysterious">Mysterious</option>
+                                    <option value="uplifting">Uplifting</option>
+                                    <option value="dark">Dark</option>
+                                    <option value="humorous">Humorous</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn" id="generateImageBtn">Generate Story from Image</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="result" style="display: none;"></div>
+            
+            <div class="stories-section">
+                <h2>Recent Stories</h2>
+                <div id="storiesList">
+                    <div class="loading">Loading recent stories...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL
+        const API_BASE = '/api';
+
+        // Tab functionality
+        function showTab(tabId) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active class from all tab buttons
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // Image preview functionality
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px;">`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = '';
+            }
+        });
+
+        // Text-based story form submission
+        document.getElementById('textStoryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('generateTextBtn');
+            const result = document.getElementById('result');
+            
+            // Show loading state
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            result.style.display = 'block';
+            result.innerHTML = '<div class="loading">Generating your story... This may take a moment.</div>';
+            
+            try {
+                const formData = new FormData(e.target);
+                const data = {
+                    prompt: formData.get('prompt'),
+                    genre: formData.get('genre'),
+                    length: formData.get('length'),
+                    tone: formData.get('tone')
+                };
+                
+                const response = await fetch(`${API_BASE}/stories`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const responseData = await response.json();
+                
+                if (response.ok && responseData.success) {
+                    displayStory(responseData.story);
+                    loadStories();
+                    e.target.reset();
+                } else {
+                    throw new Error(responseData.detail || 'Failed to generate story');
+                }
+                
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Story';
+            }
+        });
+
+        // Image-based story form submission
+        document.getElementById('imageStoryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('generateImageBtn');
+            const result = document.getElementById('result');
+            
+            // Show loading state
+            btn.disabled = true;
+            btn.textContent = 'Analyzing Image...';
+            result.style.display = 'block';
+            result.innerHTML = '<div class="loading">Analyzing your image and generating story... This may take a moment.</div>';
+            
+            try {
+                const formData = new FormData(e.target);
+                
+                const response = await fetch(`${API_BASE}/stories/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const responseData = await response.json();
+                
+                if (response.ok && responseData.success) {
+                    displayStory(responseData.story, true);
+                    loadStories();
+                    e.target.reset();
+                    document.getElementById('imagePreview').innerHTML = '';
+                } else {
+                    throw new Error(responseData.detail || 'Failed to generate story from image');
+                }
+                
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Story from Image';
+            }
+        });
+
+        // Display story function
+        function displayStory(story, isImageStory = false) {
+            const result = document.getElementById('result');
+            const imageHtml = isImageStory && story.image_filename 
+                ? `<div class="story-image"><img src="/static/uploads/${story.image_filename}" alt="Story inspiration" style="max-width: 300px; border-radius: 8px; margin-bottom: 15px;"></div>`
+                : '';
+            
+            const sourceInfo = isImageStory 
+                ? `Generated from uploaded image${story.image_description ? ` with context: "${story.image_description}"` : ''}`
+                : `Prompt: "${story.prompt}"`;
+            
+            result.innerHTML = `
+                <div class="success">Story generated successfully!</div>
+                <div class="story-card">
+                    ${imageHtml}
+                    <div class="story-title">${story.title}</div>
+                    <div class="story-meta">
+                        Theme: ${story.genre} | Words: ${story.word_count} | 
+                        Type: ${story.story_type} | 
+                        Created: ${new Date(story.created_at).toLocaleString()}
+                    </div>
+                    <div class="story-source">${sourceInfo}</div>
+                    <div class="story-content">${story.content}</div>
+                </div>
+            `;
+        }
+
+        // Load stories
+        async function loadStories() {
+            const storiesList = document.getElementById('storiesList');
+            
+            try {
+                const response = await fetch(`${API_BASE}/stories?limit=5`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    if (data.stories.length === 0) {
+                        storiesList.innerHTML = '<p>No stories yet. Generate your first story above!</p>';
+                        return;
+                    }
+                    
+                    storiesList.innerHTML = data.stories.map(story => {
+                        const imageHtml = story.story_type === 'image' && story.image_filename 
+                            ? `<div class="story-thumbnail"><img src="/static/uploads/${story.image_filename}" alt="Story image" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; float: right; margin-left: 15px;"></div>`
+                            : '';
+                        
+                        const sourceInfo = story.story_type === 'image' 
+                            ? '🖼️ Generated from image'
+                            : '📝 Generated from text';
+                        
+                        return `
+                            <div class="story-card">
+                                ${imageHtml}
+                                <div class="story-title">${story.title}</div>
+                                <div class="story-meta">
+                                    ${sourceInfo} | Theme: ${story.genre} | Words: ${story.word_count} | 
+                                    Created: ${new Date(story.created_at).toLocaleString()}
+                                </div>
+                                <div class="story-content">${story.content.substring(0, 300)}${story.content.length > 300 ? '...' : ''}</div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    throw new Error('Failed to load stories');
+                }
+                
+            } catch (error) {
+                storiesList.innerHTML = `<div class="error">Error loading stories: ${error.message}</div>`;
+            }
+        }
+
+        // Load stories on page load
+        document.addEventListener('DOMContentLoaded', loadStories);
+    </script>
+</body>
+</html>
