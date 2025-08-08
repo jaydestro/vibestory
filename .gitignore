@@ -5,6 +5,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+#static content generated
+static/generated/*
+static/uploads/*
+
 # C extensions
 *.so
 
