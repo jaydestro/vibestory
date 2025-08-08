@@ -5,6 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VibeStory - AI Story Generator</title>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <!-- Add marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Modal styles for image expansion */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            cursor: pointer;
+        }
+        
+        .modal-content {
+            display: block;
+            margin: auto;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 8px;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        
+        .close-modal:hover {
+            opacity: 0.7;
+        }
+        
+        .story-thumbnail img {
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+        
+        .story-thumbnail img:hover {
+            opacity: 0.8;
+        }
+
+        /* Story card expandable styles */
+        .story-card {
+            transition: all 0.3s ease;
+            background-color: #ffffff;
+        }
+
+        .story-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .story-content {
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 500px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -271,6 +348,151 @@
             }
         });
 
+        // Load stories
+        async function loadStories() {
+            const storiesList = document.getElementById('storiesList');
+            
+            try {
+                const response = await fetch(`${API_BASE}/stories?limit=10`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    if (data.stories.length === 0) {
+                        storiesList.innerHTML = '<p>No stories yet. Generate your first story above!</p>';
+                        return;
+                    }
+                    
+                    storiesList.innerHTML = data.stories.map((story, index) => {
+                        const imageHtml = story.story_type === 'image' && story.image_filename 
+                            ? `<div class="story-thumbnail">
+                                <img src="/static/uploads/${story.image_filename}" 
+                                     alt="Story image" 
+                                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; float: right; margin-left: 15px;" 
+                                     onclick="expandImage(event, '/static/uploads/${story.image_filename}', '${story.title}')"
+                                     title="Click to expand image">
+                               </div>`
+                            : '';
+                        
+                        const sourceInfo = story.story_type === 'image' 
+                            ? '🖼️ Generated from image'
+                            : '📝 Generated from text';
+
+                        const preview = story.content.length > 300 ? story.content.substring(0, 300) + '...' : story.content;
+                        
+                        return `
+                            <div class="story-card" style="cursor: pointer; transition: all 0.3s ease;" onclick="toggleStoryExpansion(${index})">
+                                ${imageHtml}
+                                <div class="story-title">${story.title}</div>
+                                <div class="story-meta">
+                                    ${sourceInfo} | Theme: ${story.genre} | Words: ${story.word_count} | 
+                                    Created: ${new Date(story.created_at).toLocaleString()}
+                                </div>
+                                <div class="story-preview" id="story-preview-${index}">
+                                    ${renderMarkdown(preview)}
+                                </div>
+                                <div class="story-full-content" id="story-full-${index}" style="display: none;">
+                                    ${story.story_type === 'text' ? `<p><strong>Prompt:</strong> ${story.prompt || 'N/A'}</p>` : ''}
+                                    ${story.story_type === 'image' && story.image_description ? `<p><strong>Image Context:</strong> ${story.image_description}</p>` : ''}
+                                    <div class="story-content" style="margin-top: 10px;">
+                                        ${renderMarkdown(story.content)}
+                                    </div>
+                                </div>
+                                ${story.content.length > 300 ? `<div class="expand-indicator" id="expand-indicator-${index}" style="text-align: center; margin-top: 10px; color: #666; font-size: 0.9em;">Click to expand ↓</div>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    throw new Error('Failed to load stories');
+                }
+                
+            } catch (error) {
+                storiesList.innerHTML = `<div class="error">Error loading stories: ${error.message}</div>`;
+            }
+        }
+
+        // Toggle story expansion
+        function toggleStoryExpansion(index) {
+            const preview = document.getElementById(`story-preview-${index}`);
+            const fullContent = document.getElementById(`story-full-${index}`);
+            const indicator = document.getElementById(`expand-indicator-${index}`);
+            
+            if (fullContent.style.display === 'none') {
+                preview.style.display = 'none';
+                fullContent.style.display = 'block';
+                if (indicator) indicator.innerHTML = 'Click to collapse ↑';
+            } else {
+                preview.style.display = 'block';
+                fullContent.style.display = 'none';
+                if (indicator) indicator.innerHTML = 'Click to expand ↓';
+            }
+        }
+
+        // Image expansion functionality
+        function expandImage(event, imageSrc, imageTitle) {
+            event.stopPropagation(); // Prevent story card expansion when clicking image
+            
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('imageModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'imageModal';
+                modal.className = 'image-modal';
+                modal.innerHTML = `
+                    <span class="close-modal" onclick="closeImageModal()">&times;</span>
+                    <img class="modal-content" id="modalImage" alt="">
+                `;
+                document.body.appendChild(modal);
+                
+                // Close modal when clicking outside the image
+                modal.onclick = function(e) {
+                    if (e.target === modal) {
+                        closeImageModal();
+                    }
+                };
+                
+                // Close modal with Escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && modal.style.display === 'block') {
+                        closeImageModal();
+                    }
+                });
+            }
+            
+            // Set image source and show modal
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = imageSrc;
+            modalImage.alt = imageTitle;
+            modal.style.display = 'block';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Render markdown content
+        function renderMarkdown(content) {
+            if (!content) return '';
+            
+            // Check if marked.js is available
+            if (typeof marked !== 'undefined') {
+                try {
+                    return marked.parse(content);
+                } catch (error) {
+                    console.warn('Markdown parsing failed, showing as plain text:', error);
+                    return content.replace(/\n/g, '<br>');
+                }
+            } else {
+                // Fallback: simple text formatting
+                return content.replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`([^`]+)`/g, '<code>$1</code>');
+            }
+        }
+
         // Display story function
         function displayStory(story, isImageStory = false) {
             const result = document.getElementById('result');
@@ -293,53 +515,9 @@
                         Created: ${new Date(story.created_at).toLocaleString()}
                     </div>
                     <div class="story-source">${sourceInfo}</div>
-                    <div class="story-content">${story.content}</div>
+                    <div class="story-content">${renderMarkdown(story.content)}</div>
                 </div>
             `;
-        }
-
-        // Load stories
-        async function loadStories() {
-            const storiesList = document.getElementById('storiesList');
-            
-            try {
-                const response = await fetch(`${API_BASE}/stories?limit=5`);
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    if (data.stories.length === 0) {
-                        storiesList.innerHTML = '<p>No stories yet. Generate your first story above!</p>';
-                        return;
-                    }
-                    
-                    storiesList.innerHTML = data.stories.map(story => {
-                        const imageHtml = story.story_type === 'image' && story.image_filename 
-                            ? `<div class="story-thumbnail"><img src="/static/uploads/${story.image_filename}" alt="Story image" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; float: right; margin-left: 15px;"></div>`
-                            : '';
-                        
-                        const sourceInfo = story.story_type === 'image' 
-                            ? '🖼️ Generated from image'
-                            : '📝 Generated from text';
-                        
-                        return `
-                            <div class="story-card">
-                                ${imageHtml}
-                                <div class="story-title">${story.title}</div>
-                                <div class="story-meta">
-                                    ${sourceInfo} | Theme: ${story.genre} | Words: ${story.word_count} | 
-                                    Created: ${new Date(story.created_at).toLocaleString()}
-                                </div>
-                                <div class="story-content">${story.content.substring(0, 300)}${story.content.length > 300 ? '...' : ''}</div>
-                            </div>
-                        `;
-                    }).join('');
-                } else {
-                    throw new Error('Failed to load stories');
-                }
-                
-            } catch (error) {
-                storiesList.innerHTML = `<div class="error">Error loading stories: ${error.message}</div>`;
-            }
         }
 
         // Load stories on page load
