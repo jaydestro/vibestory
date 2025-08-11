@@ -185,20 +185,67 @@
             background: #6c757d;
             color: white;
         }
+
+        /* Added back content policy error styling */
+        .content-policy-error {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #856404;
+        }
+        .content-policy-error h4 {
+            margin: 0 0 10px 0;
+            color: #856404;
+        }
+        .content-policy-error ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .content-policy-error li {
+            margin: 5px 0;
+        }
+
+        /* Add styles for technical error details */
+        .technical-error {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 0.8em;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            color: #d63031;
+        }
+        
+        .error-toggle {
+            display: inline-block;
+            background: #f8d7da;
+            color: #721c24;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            cursor: pointer;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>🎨 VibeStory</h1>
-            <p class="subtitle">AI-Powered Story Generator</p>
+            <p class="subtitle">AI-Powered Story & Image Generator</p>
         </header>
 
         <div class="main-content">
             <!-- Navigation Tabs -->
             <div class="tab-container">
-                <button class="tab-btn active" onclick="showTab('text-tab')">Text Prompt</button>
-                <button class="tab-btn" onclick="showTab('image-tab')">Image Upload</button>
+                <button class="tab-btn active" onclick="showTab(event, 'text-tab')">Text Prompt</button>
+                <button class="tab-btn" onclick="showTab(event, 'image-tab')">Image Upload</button>
             </div>
 
             <!-- Text-based Story Generation -->
@@ -246,6 +293,49 @@
                                     <option value="dark">Dark</option>
                                     <option value="uplifting">Uplifting</option>
                                 </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Add image generation toggle and options -->
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="textGenerateImage" onchange="toggleTextImageOptions()">
+                                Also generate an AI image for this story
+                            </label>
+                        </div>
+                        
+                        <div id="textImageOptions" style="display:none; border:1px solid #eee; padding:10px; border-radius:8px; margin-bottom:12px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="textImageStyle">Image Style:</label>
+                                    <select id="textImageStyle">
+                                        <option value="realistic">Realistic</option>
+                                        <option value="digital-art">Digital Art</option>
+                                        <option value="fantasy">Fantasy Art</option>
+                                        <option value="painting">Oil Painting</option>
+                                        <option value="watercolor">Watercolor</option>
+                                        <option value="cartoon">Cartoon</option>
+                                        <option value="anime">Anime</option>
+                                        <option value="photography">Photography</option>
+                                        <option value="sketch">Pencil Sketch</option>
+                                        <option value="sci-fi">Sci-Fi</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="textImageSize">Image Size:</label>
+                                    <select id="textImageSize">
+                                        <option value="1024x1024">Square 1024x1024</option>
+                                        <option value="1792x1024">Landscape 1792x1024</option>
+                                        <option value="1024x1792">Portrait 1024x1792</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="textImageQuality">Quality:</label>
+                                    <select id="textImageQuality">
+                                        <option value="standard">Standard</option>
+                                        <option value="hd">HD</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         
@@ -311,6 +401,49 @@
                             </div>
                         </div>
                         
+                        <!-- Add image generation toggle and options -->
+                        <div class="form-group" style="margin-top:6px;">
+                            <label>
+                                <input type="checkbox" id="uploadGenerateImage" onchange="toggleUploadImageOptions()">
+                                Also generate an AI image based on the resulting story
+                            </label>
+                        </div>
+                        
+                        <div id="uploadImageOptions" style="display:none; border:1px solid #eee; padding:10px; border-radius:8px; margin-bottom:12px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="uploadImageStyle">Image Style:</label>
+                                    <select id="uploadImageStyle">
+                                        <option value="realistic">Realistic</option>
+                                        <option value="digital-art">Digital Art</option>
+                                        <option value="fantasy">Fantasy Art</option>
+                                        <option value="painting">Oil Painting</option>
+                                        <option value="watercolor">Watercolor</option>
+                                        <option value="cartoon">Cartoon</option>
+                                        <option value="anime">Anime</option>
+                                        <option value="photography">Photography</option>
+                                        <option value="sketch">Pencil Sketch</option>
+                                        <option value="sci-fi">Sci-Fi</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="uploadImageSize">Image Size:</label>
+                                    <select id="uploadImageSize">
+                                        <option value="1024x1024">Square 1024x1024</option>
+                                        <option value="1792x1024">Landscape 1792x1024</option>
+                                        <option value="1024x1792">Portrait 1024x1792</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="uploadImageQuality">Quality:</label>
+                                    <select id="uploadImageQuality">
+                                        <option value="standard">Standard</option>
+                                        <option value="hd">HD</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <button type="submit" class="btn" id="generateImageBtn">Generate Story from Image</button>
                     </form>
                 </div>
@@ -347,13 +480,23 @@
     </div>
 
     <script>
+        // API base URL
         const API_BASE = '/api';
 
         // Tab functionality
-        function showTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        function showTab(event, tabId) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active class from all tab buttons
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected tab
             document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to clicked button
             event.target.classList.add('active');
         }
 
@@ -442,10 +585,41 @@
             if (modal) modal.style.display = 'none';
         }
 
-        // Display story
-        function displayStory(story, isImageStory = false) {
+        // Add function to toggle technical details
+        function toggleTechnicalDetails(event) {
+            event.stopPropagation();
+            const btn = event.target;
+            const details = btn.nextElementSibling;
+            
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                btn.textContent = 'Hide Technical Details';
+            } else {
+                details.style.display = 'none';
+                btn.textContent = 'Show Technical Details';
+            }
+        }
+        
+        // Improved display story function with better JSON handling
+        function displayStory(story, isImageStory = false, generatedImage = null) {
+            // Debug the input for troubleshooting
+            console.log('Display story input:', { story, isImageStory, generatedImage });
+            
+            // Ensure we have a valid story object
+            if (!story) {
+                console.error('No story data provided to displayStory');
+                return;
+            }
+            
+            // Apply content normalization
             story = coerceStory(story);
+            
+            // More debugging after coercion
+            console.log('Story after coercion:', story);
+            
             const result = document.getElementById('result');
+            
+            // Handle uploaded image display
             const originalUpload = (isImageStory && story.image_filename)
                 ? `<div style="margin-bottom:12px;">
                      <div style="font-weight:600;font-size:.85em;color:#555;">Source Image</div>
@@ -457,25 +631,92 @@
                    </div>`
                 : '';
             
+            // Handle generated image with improved error handling
+            let generatedImg = '';
+            if (generatedImage) {
+                console.log('Processing generated image:', generatedImage);
+                
+                if (generatedImage.error) {
+                    // Handle different types of errors
+                    if (generatedImage.error_type === 'content_policy') {
+                        const suggestions = generatedImage.error.includes('Please try:') ? 
+                            generatedImage.error.split('Please try:')[1] : '';
+                        generatedImg = `
+                            <div class="content-policy-error">
+                                <h4>🚫 Image Generation Blocked - Content Policy</h4>
+                                <p>The AI image generator couldn't create an image for this story because it may contain content that violates OpenAI's usage policies.</p>
+                                ${suggestions ? `<p><strong>Suggestions:</strong></p><ul>${suggestions.split('•').filter(s => s.trim()).map(s => `<li>${s.trim()}</li>`).join('')}</ul>` : ''}
+                                <p><em>You can still enjoy the story - only the image generation was affected.</em></p>
+                            </div>
+                        `;
+                    } else {
+                        // Enhanced error display with technical details toggle
+                        let errorMsg = generatedImage.error;
+                        
+                        // Clean up error message for display
+                        if (errorMsg.includes('Unexpected error during image generation:')) {
+                            errorMsg = errorMsg.replace('Unexpected error during image generation:', '');
+                        }
+                        
+                        generatedImg = `
+                            <div class="image-error">
+                                <div>Image generation failed: ${errorMsg}</div>
+                                ${generatedImage.debug_info ? `
+                                    <button class="error-toggle" onclick="toggleTechnicalDetails(event)">
+                                        Show Technical Details
+                                    </button>
+                                    <div class="technical-error" style="display:none;">
+                                        ${errorMsg}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                        
+                        // Also log to console for debugging
+                        console.error('Image generation error:', errorMsg);
+                    }
+                } else if (generatedImage.image_url) {
+                    generatedImg = `
+                        <div style="margin-bottom:12px;">
+                            <div style="font-weight:600; font-size:.85em; color:#555;">AI Generated Image</div>
+                            <img src="${generatedImage.image_url}"
+                                 alt="Generated"
+                                 style="max-width:300px;border-radius:8px;cursor:pointer;"
+                                 onerror="this.style.opacity=0.3; this.title='Generated image load error'; console.error('Failed to load image:', this.src);"
+                                 onclick="expandImage(event,'${generatedImage.image_url}','Generated Image')" />
+                            <div style="font-size:.7em;color:#666;margin-top:4px;">
+                              Style: ${generatedImage.style || ''} | Size: ${generatedImage.size || ''} | Quality: ${generatedImage.quality || ''}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Ensure we have proper source info
             const sourceInfo = isImageStory
                 ? `Generated from uploaded image${story.image_description ? ` (context: "${story.image_description}")` : ''}`
-                : `Prompt: "${story.prompt}"`;
+                : `Prompt: "${story.prompt || ''}"`;
 
+            // Check for JSON content and handle appropriately
+            let content = story.content || '';
+            
+            // Set the result HTML
             result.style.display = 'block';
             result.innerHTML = `
-                <div class="success">Successfully generated story!</div>
+                <div class="success">Successfully generated story${generatedImage && generatedImage.image_url ? ' & image' : ''}!</div>
                 <div class="story-card">
                     ${originalUpload}
-                    <div class="story-title">${story.title}</div>
+                    ${generatedImg}
+                    <div class="story-title">${story.title || 'Untitled Story'}</div>
                     <div class="story-meta">
-                        Theme: ${story.genre} | Words: ${story.word_count} | Type: ${story.story_type} |
-                        Created: ${new Date(story.created_at).toLocaleString()}
+                        Theme: ${story.genre || 'general'} | Words: ${story.word_count || '0'} | Type: ${story.story_type || 'text'} |
+                        Created: ${new Date(story.created_at || Date.now()).toLocaleString()}
                     </div>
                     <div class="story-source" style="margin-top:6px;">${sourceInfo}</div>
-                    <div class="story-content" style="margin-top:12px;">${renderMarkdown(story.content)}</div>
+                    <div class="story-content" style="margin-top:12px;">${renderMarkdown(content)}</div>
                 </div>`;
         }
-
+        
         // Load stats
         async function loadStats() {
             try {
@@ -495,7 +736,7 @@
             }
         }
 
-        // Load stories
+        // Load stories with direct delete function
         async function loadStories() {
             const storiesList = document.getElementById('storiesList');
             try {
@@ -511,22 +752,43 @@
                 
                 storiesList.innerHTML = data.stories.map((story, i) => {
                     story = coerceStory(story);
-                    const imageHtml = story.story_type === 'image' && story.image_filename
-                        ? `<div class="story-thumbnail">
-                             <img src="/static/uploads/${story.image_filename}"
-                                  alt="Story image"
-                                  style="width:60px;height:60px;object-fit:cover;border-radius:8px;float:right;margin-left:15px;"
-                                  onclick="expandImage(event,'/static/uploads/${story.image_filename}','${story.title.replace(/'/g, "\\'")}')"
-                                  title="Click to expand image">
-                           </div>`
-                        : '';
+                    
+                    const storyId = story.id ? story.id.trim() : '';
+                    const safeTitle = story.title ? 
+                        story.title.replace(/'/g, "\\'").replace(/"/g, '&quot;') : 
+                        'Untitled Story';
+                    
+                    // Handle source image (uploaded image)
+                    let imageHtml = '';
+                    if (story.story_type === 'image' && story.image_filename) {
+                        imageHtml = `
+                            <div class="story-thumbnail">
+                                <img src="/static/uploads/${story.image_filename}"
+                                    alt="Source image"
+                                    style="width:60px;height:60px;object-fit:cover;border-radius:8px;float:right;margin-left:15px;"
+                                    onclick="expandImage(event,'/static/uploads/${story.image_filename}','${safeTitle}')"
+                                    title="Click to expand image">
+                            </div>`;
+                    }
+                    
+                    // Handle AI-generated image (new addition)
+                    if (story.generated_image_filename) {
+                        imageHtml += `
+                            <div class="story-thumbnail">
+                                <img src="/static/generated/${story.generated_image_filename}"
+                                    alt="AI Generated"
+                                    style="width:60px;height:60px;object-fit:cover;border-radius:8px;float:right;margin-left:15px;border:2px solid #3498db;"
+                                    onclick="expandImage(event,'/static/generated/${story.generated_image_filename}','AI image for: ${safeTitle}')"
+                                    title="AI-generated image (click to expand)">
+                            </div>`;
+                    }
                     
                     const sourceInfo = story.story_type === 'image' ? '🖼️ Generated from image' : '📝 Generated from text';
                     const previewRaw = story.content || '';
                     const preview = previewRaw.length > 300 ? previewRaw.substring(0, 300) + '...' : previewRaw;
                     
                     return `
-                        <div class="story-card" style="transition:all .3s ease;">
+                        <div class="story-card" id="story-${storyId}" style="transition:all .3s ease;">
                             ${imageHtml}
                             <div style="cursor:pointer;" onclick="toggleStoryExpansion(${i})">
                                 <div class="story-title">${story.title}</div>
@@ -539,11 +801,27 @@
                                     ${story.story_type === 'text' ? `<p><strong>Prompt:</strong> ${story.prompt || 'N/A'}</p>` : ''}
                                     ${story.story_type === 'image' && story.image_description ? `<p><strong>Image Context:</strong> ${story.image_description}</p>` : ''}
                                     <div class="story-content" style="margin-top:10px;">${renderMarkdown(story.content)}</div>
+                                    ${story.generated_image_filename ? 
+                                        `<div class="ai-image" style="margin-top:15px;">
+                                            <div style="font-weight:600;font-size:.9em;color:#2980b9;">AI Generated Image</div>
+                                            <img src="/static/generated/${story.generated_image_filename}" 
+                                                 alt="AI generated image"
+                                                 style="max-width:250px;border-radius:8px;margin-top:8px;cursor:pointer;"
+                                                 onclick="expandImage(event,'/static/generated/${story.generated_image_filename}','AI Generated Image')"
+                                                 title="Click to expand">
+                                            ${story.generated_image_style ? 
+                                                `<div style="font-size:.7em;color:#666;margin-top:4px;">
+                                                    Style: ${story.generated_image_style}
+                                                 </div>` : ''}
+                                        </div>` : ''}
                                 </div>
                                 ${previewRaw.length > 300 ? `<div class="expand-indicator" id="expand-indicator-${i}" style="text-align:center;margin-top:10px;color:#666;font-size:.9em;">Click to expand ↓</div>` : ''}
                             </div>
                             <div class="story-actions">
-                                <button class="delete-btn" onclick="event.stopPropagation();showDeleteConfirmation('${story.id}','${story.title.replace(/'/g, "\\'")}')" title="Delete this story">🗑️ Delete</button>
+                                <button class="delete-btn" 
+                                        onclick="deleteStory('${storyId}', '${safeTitle}')">
+                                    🗑️ Delete
+                                </button>
                             </div>
                         </div>`;
                 }).join('');
@@ -551,6 +829,7 @@
                 await loadStats();
             } catch (e) {
                 storiesList.innerHTML = `<div class="error">Error loading stories: ${e.message}</div>`;
+                console.error('Failed to load stories:', e);
             }
         }
 
@@ -571,58 +850,129 @@
             }
         }
 
-        // Delete handling
-        let storyToDelete = null;
-        
-        function showDeleteConfirmation(id, title) {
-            storyToDelete = id;
-            document.getElementById('deleteStoryTitle').textContent = title || 'this story';
-            document.getElementById('deleteModal').style.display = 'block';
-        }
-        
-        function hideDeleteConfirmation() {
-            document.getElementById('deleteModal').style.display = 'none';
-            storyToDelete = null;
-        }
-        
-        async function confirmDeleteStory() {
-            if (!storyToDelete) return;
-            const btn = document.getElementById('confirmDeleteBtn');
-            const orig = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = 'Deleting...';
+        // Simple direct delete function - bypassing the modal which might be causing issues
+        function deleteStory(id, title) {
+            if (!id) {
+                console.error('No story ID provided to deleteStory');
+                return;
+            }
             
-            try {
-                const resp = await fetch(`/api/stories/${storyToDelete}`, {method: 'DELETE'});
-                const data = await resp.json();
+            console.log(`Attempting to delete story: ${id} - ${title}`);
+            
+            if (confirm(`Are you sure you want to delete "${title}"?`)) {
+                // Visual feedback while deleting
+                const storyCard = document.getElementById(`story-${id}`);
+                if (storyCard) {
+                    storyCard.style.opacity = '0.5';
+                    storyCard.style.pointerEvents = 'none';
+                }
                 
-                if (!(resp.ok && data.success)) throw new Error(data.detail || 'Delete failed');
-                
-                hideDeleteConfirmation();
-                await loadStories();
-                
-                const result = document.getElementById('result');
-                result.style.display = 'block';
-                result.innerHTML = '<div class="success">Story deleted successfully</div>';
-                setTimeout(() => { result.style.display = 'none'; }, 2500);
-            } catch (e) {
-                alert('Delete failed: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = orig;
+                // Make the API call
+                fetch(`${API_BASE}/stories/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    console.log(`Delete response status: ${response.status}`);
+                    return response.text().then(text => {
+                        console.log(`Delete response body: ${text}`);
+                        
+                        if (response.ok) {
+                            // Success - remove the story card immediately for better UX
+                            if (storyCard) {
+                                storyCard.style.height = '0';
+                                storyCard.style.margin = '0';
+                                storyCard.style.padding = '0';
+                                storyCard.style.overflow = 'hidden';
+                                
+                                // Then remove it completely after animation
+                                setTimeout(() => {
+                                    storyCard.remove();
+                                    // If no stories left, refresh the list to show empty state
+                                    if (document.querySelectorAll('.story-card').length === 0) {
+                                        loadStories();
+                                    }
+                                }, 300);
+                            } else {
+                                // Fallback - reload all stories
+                                loadStories();
+                            }
+                            
+                            // Show success message
+                            const result = document.getElementById('result');
+                            result.style.display = 'block';
+                            result.innerHTML = '<div class="success">Story deleted successfully</div>';
+                            setTimeout(() => { result.style.display = 'none'; }, 2500);
+                            
+                            // Also update stats
+                            loadStats();
+                            return { success: true };
+                        } else {
+                            // Error handling
+                            let error = 'Failed to delete story';
+                            try {
+                                const data = JSON.parse(text);
+                                if (data.detail) error = data.detail;
+                            } catch (e) {
+                                console.warn('Could not parse error response');
+                            }
+                            throw new Error(error);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Delete operation failed:', error);
+                    alert(`Failed to delete story: ${error.message}`);
+                    
+                    // Restore the story card if it was visually modified
+                    if (storyCard) {
+                        storyCard.style.opacity = '1';
+                        storyCard.style.pointerEvents = 'auto';
+                    }
+                });
             }
         }
 
-        // Form submissions
+        // Toggle image options
+        function toggleTextImageOptions() {
+            document.getElementById('textImageOptions').style.display = 
+                document.getElementById('textGenerateImage').checked ? 'block' : 'none';
+        }
+        
+        function toggleUploadImageOptions() {
+            document.getElementById('uploadImageOptions').style.display = 
+                document.getElementById('uploadGenerateImage').checked ? 'block' : 'none';
+        }
+        
+        // Initialize with better debugging
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('VibeStory app initializing...');
+            loadStories();
+            
+            // Add test delete function to global scope for debugging
+            window.testDelete = function(id) {
+                console.log(`Test delete function called for ID: ${id}`);
+                return fetch(`${API_BASE}/stories/${id}`, {
+                    method: 'DELETE'
+                }).then(r => r.text());
+            };
+        });
+
+        // Form submissions - update to handle image generation
         document.getElementById('textStoryForm').addEventListener('submit', async e => {
             e.preventDefault();
             const btn = e.target.querySelector('#generateTextBtn');
             const result = document.getElementById('result');
+            const wantImage = document.getElementById('textGenerateImage').checked;
             
             btn.disabled = true;
-            btn.textContent = 'Generating...';
+            btn.textContent = wantImage ? 'Generating Story & Image...' : 'Generating...';
             result.style.display = 'block';
-            result.innerHTML = '<div class="loading">Generating your story...</div>';
+            result.innerHTML = wantImage
+                ? '<div class="loading">Generating your story and image... please wait (may take up to a minute)...</div>'
+                : '<div class="loading">Generating your story...</div>';
             
             try {
                 const fd = new FormData(e.target);
@@ -630,8 +980,18 @@
                     prompt: fd.get('prompt'),
                     genre: fd.get('genre'),
                     length: fd.get('length'),
-                    tone: fd.get('tone')
+                    tone: fd.get('tone'),
+                    generate_image: wantImage
                 };
+                
+                if (wantImage) {
+                    payload.image_style = document.getElementById('textImageStyle').value;
+                    payload.image_size = document.getElementById('textImageSize').value;
+                    payload.image_quality = document.getElementById('textImageQuality').value;
+                }
+                
+                // Detailed console info for debugging
+                console.log(`Sending request${wantImage ? ' with image generation' : ''} to /api/stories`);
                 
                 const r = await fetch('/api/stories', {
                     method: 'POST',
@@ -639,13 +999,35 @@
                     body: JSON.stringify(payload)
                 });
                 
-                const data = await r.json();
-                if (!(r.ok && data.success)) throw new Error(data.detail || 'Failed to generate story');
+                // Log raw response for debugging
+                const responseText = await r.text();
+                console.log('Raw response:', responseText);
                 
-                displayStory(data.story, false);
+                // Parse the JSON (again, now that we have the text for debugging)
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
+                
+                if (!(r.ok && data.success)) {
+                    console.error('API Error:', data);
+                    throw new Error(data.detail || 'Failed to generate story');
+                }
+                
+                // Log the final data before displaying
+                console.log('Processed response data:', data);
+                
+                // Show generated story and image if available
+                displayStory(data.story, false, data.generated_image || null);
                 e.target.reset();
+                document.getElementById('textGenerateImage').checked = false;
+                toggleTextImageOptions(); // Reset toggle state
                 await loadStories();
             } catch (err) {
+                console.error('Form submission error:', err);
                 result.innerHTML = `<div class="error">Error: ${err.message}</div>`;
             } finally {
                 btn.disabled = false;
@@ -657,22 +1039,49 @@
             e.preventDefault();
             const btn = e.target.querySelector('#generateImageBtn');
             const result = document.getElementById('result');
+            const wantImage = document.getElementById('uploadGenerateImage').checked;
             
             btn.disabled = true;
-            btn.textContent = 'Analyzing Image...';
+            btn.textContent = wantImage ? 'Generating Story & Image...' : 'Analyzing Image...';
             result.style.display = 'block';
-            result.innerHTML = '<div class="loading">Analyzing image and generating story...</div>';
+            result.innerHTML = wantImage
+                ? '<div class="loading">Analyzing image, generating story and companion image... please wait...</div>'
+                : '<div class="loading">Analyzing image and generating story...</div>';
             
             try {
                 const fd = new FormData(e.target);
+                
+                if (wantImage) {
+                    fd.append('generate_image', 'true');
+                    fd.append('image_style', document.getElementById('uploadImageStyle').value);
+                    fd.append('image_size', document.getElementById('uploadImageSize').value);
+                    fd.append('image_quality', document.getElementById('uploadImageQuality').value);
+                }
+                
                 const r = await fetch('/api/stories/image', {method: 'POST', body: fd});
-                const data = await r.json();
+                
+                // Log raw response for debugging
+                const responseText = await r.text();
+                console.log('Raw image story response:', responseText);
+                
+                // Parse the JSON (again, now that we have the text for debugging)
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON parse error in image story:', parseError);
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
                 
                 if (!(r.ok && data.success)) throw new Error(data.detail || 'Failed to generate story from image');
                 
-                displayStory(data.story, true);
+                // Log the final data before displaying
+                console.log('Processed image story data:', data);
+                
+                displayStory(data.story, true, data.generated_image || null);
                 e.target.reset();
                 document.getElementById('imagePreview').innerHTML = '';
+                toggleUploadImageOptions(); // Reset toggle state
                 await loadStories();
             } catch (err) {
                 result.innerHTML = `<div class="error">Error: ${err.message}</div>`;
@@ -681,9 +1090,6 @@
                 btn.textContent = 'Generate Story from Image';
             }
         });
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', loadStories);
     </script>
 </body>
 </html>
