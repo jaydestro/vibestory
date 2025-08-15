@@ -18,8 +18,11 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Make startup executable
-        run: chmod +x vibestory/startup.sh
+      - name: Make startup executable if present
+        run: |
+          if [ -f vibestory/startup.sh ]; then
+            chmod +x vibestory/startup.sh
+          fi
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
