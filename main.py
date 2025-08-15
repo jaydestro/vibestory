@@ -8,6 +8,8 @@ import os
 import sys
 import subprocess
 from pathlib import Path
+import base64
+import aiohttp
 
 def check_python_version():
     """Check if Python version is supported"""
@@ -135,6 +137,7 @@ import json
 from datetime import datetime
 import uuid
 import traceback
+from azure.cosmos import CosmosClient  # ensure available
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -152,6 +155,16 @@ app = FastAPI(title="VibeStory", description="AI Story Generator")
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Ensure image directories exist
+UPLOAD_DIR = "static/uploads"
+GENERATED_DIR = "static/generated"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(GENERATED_DIR, exist_ok=True)
+
+# Add these constants once (used for file cleanup)
+UPLOAD_DIR = "static/uploads"
+GENERATED_DIR = "static/generated"
+
 # Templates
 templates = Jinja2Templates(directory="templates")
 
@@ -166,6 +179,11 @@ class StoryRequest(BaseModel):
     genre: str = "general"
     length: str = "medium"
     tone: str = "neutral"
+    # Added optional image generation fields
+    generate_image: bool = False
+    image_style: Optional[str] = None
+    image_size: Optional[str] = "1024x1024"   # e.g., 1024x1024, 1792x1024, 1024x1792
+    image_quality: Optional[str] = "standard" # 'standard' or 'hd'
 
 @app.on_event("startup")
 async def startup_event():
@@ -349,6 +367,72 @@ async def create_text_story(story_request: StoryRequest):
             "created_at": datetime.utcnow().isoformat()
         }
         
+        generated_image_resp = None  # Will carry image result or error for frontend
+
+        # If image generation requested, call Azure OpenAI Images and save locally
+        if story_request.generate_image:
+            try:
+                image_deployment = os.getenv("AZURE_OPENAI_IMAGE_DEPLOYMENT_NAME") or os.getenv("AZURE_OPENAI_IMAGE_MODEL") or "dall-e-3"
+                image_style = story_request.image_style or "realistic"
+                image_size = story_request.image_size or "1024x1024"
+                image_quality = story_request.image_quality or "standard"
+
+                # Build concise prompt from story
+                img_prompt = f"Create a {image_style} image illustrating the story titled '{title}'. Scene: {content[:300]}"
+
+                # Request image
+                img = openai_client.images.generate(
+                    model=image_deployment,
+                    prompt=img_prompt,
+                    size=image_size,
+                    quality=image_quality,
+                    n=1
+                )
+
+                # Handle URL or base64 responses
+                image_bytes = None
+                if img.data and len(img.data) > 0:
+                    data0 = img.data[0]
+                    if getattr(data0, "b64_json", None):
+                        image_bytes = base64.b64decode(data0.b64_json)
+                    elif getattr(data0, "url", None):
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(data0.url) as resp:
+                                if resp.status == 200:
+                                    image_bytes = await resp.read()
+                                else:
+                                    raise RuntimeError(f"Image download failed: HTTP {resp.status}")
+                if not image_bytes:
+                    raise RuntimeError("No image data returned from Azure OpenAI")
+
+                # Persist image
+                filename = f"generated_{uuid.uuid4().hex}.png"
+                out_path = os.path.join(GENERATED_DIR, filename)
+                with open(out_path, "wb") as f:
+                    f.write(image_bytes)
+
+                # Attach metadata to story for listing
+                story["generated_image_filename"] = filename
+                story["generated_image_style"] = image_style
+                story["generated_image_size"] = image_size
+                story["generated_image_quality"] = image_quality
+
+                generated_image_resp = {
+                    "image_url": f"/static/generated/{filename}",
+                    "style": image_style,
+                    "size": image_size,
+                    "quality": image_quality
+                }
+            except Exception as ie:
+                # Graceful degradation: story still returns, image error sent to UI
+                msg = str(ie)
+                # Best-effort content policy detection
+                error_type = "content_policy" if "safety" in msg.lower() or "policy" in msg.lower() else "generation_error"
+                generated_image_resp = {
+                    "error": f"Image generation failed: {msg}",
+                    "error_type": error_type
+                }
+
         # Save to Cosmos DB
         if container:
             try:
@@ -357,11 +441,15 @@ async def create_text_story(story_request: StoryRequest):
             except Exception as db_error:
                 logger.error(f"Failed to save story to database: {db_error}")
         
-        return {
+        # Build response including image (if requested)
+        resp = {
             "success": True,
             "story": story
         }
-        
+        if generated_image_resp:
+            resp["generated_image"] = generated_image_resp
+        return resp
+
     except Exception as e:
         logger.error(f"Error creating text story: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate story: {str(e)}")
@@ -452,6 +540,63 @@ async def get_story_history():
     """Get story history - same as get_stories but with different limit"""
     return await get_stories(limit=10)
 
+@app.get("/api/stories/stats")
+async def get_stories_stats():
+    """Return basic stats for stories"""
+    try:
+        if not container:
+            return {
+                "success": True,
+                "total": 0,
+                "text": 0,
+                "image": 0,
+                "avg_words": 0
+            }
+
+        # Total
+        total_result = list(container.query_items(
+            query="SELECT VALUE COUNT(1) FROM c",
+            enable_cross_partition_query=True
+        ))
+        total = total_result[0] if total_result else 0
+
+        # By type
+        text_result = list(container.query_items(
+            query="SELECT VALUE COUNT(1) FROM c WHERE c.story_type = 'text'",
+            enable_cross_partition_query=True
+        ))
+        text_count = text_result[0] if text_result else 0
+
+        image_result = list(container.query_items(
+            query="SELECT VALUE COUNT(1) FROM c WHERE c.story_type = 'image'",
+            enable_cross_partition_query=True
+        ))
+        image_count = image_result[0] if image_result else 0
+
+        # Average words
+        avg_result = list(container.query_items(
+            query="SELECT VALUE AVG(c.word_count) FROM c WHERE IS_DEFINED(c.word_count)",
+            enable_cross_partition_query=True
+        ))
+        avg_words = int(avg_result[0]) if avg_result and avg_result[0] else 0
+
+        return {
+            "success": True,
+            "total": total,
+            "text": text_count,
+            "image": image_count,
+            "avg_words": avg_words
+        }
+    except Exception as e:
+        logger.error(f"Stats endpoint error: {e}")
+        return {
+            "success": True,
+            "total": 0,
+            "text": 0,
+            "image": 0,
+            "avg_words": 0
+        }
+
 @app.get("/debug/cosmos")
 async def debug_cosmos():
     """Debug endpoint for Cosmos DB connection"""
@@ -486,3 +631,89 @@ async def env_debug():
         "cosmos_db_name": os.getenv("COSMOS_DB_NAME", "NOT SET"),
         "cosmos_container_name": os.getenv("COSMOS_CONTAINER_NAME", "NOT SET")
     }
+
+@app.delete("/api/stories/{story_id}")
+async def delete_story(story_id: str):
+    """Delete a story by ID from Cosmos DB and remove associated files"""
+    try:
+        logger.info(f"Attempting to delete story with ID: {story_id}")
+
+        # Ensure DB initialized
+        if not container:
+            raise HTTPException(status_code=503, detail="Database not available")
+
+        # 1) Find the story (cross-partition) to get file names and candidate PKs
+        query = "SELECT * FROM c WHERE c.id = @id"
+        items = list(container.query_items(
+            query=query,
+            parameters=[{"name": "@id", "value": story_id}],
+            enable_cross_partition_query=True
+        ))
+        if not items:
+            logger.warning(f"Story not found: {story_id}")
+            raise HTTPException(status_code=404, detail="Story not found")
+
+        story = items[0]
+        logger.info(f"Found story to delete: {story.get('title','Untitled')}")
+
+        # 2) Best-effort file cleanup
+        try:
+            if story.get("image_filename"):
+                p = os.path.join(UPLOAD_DIR, story["image_filename"])
+                if os.path.exists(p):
+                    os.remove(p)
+                    logger.info(f"Deleted uploaded image: {p}")
+            if story.get("generated_image_filename"):
+                p = os.path.join(GENERATED_DIR, story["generated_image_filename"])
+                if os.path.exists(p):
+                    os.remove(p)
+                    logger.info(f"Deleted generated image: {p}")
+        except Exception as fe:
+            logger.warning(f"File cleanup warning: {fe}")
+
+        # 3) Determine container partition key path (e.g., '/genre')
+        pk_path = None
+        try:
+            meta = container.read()
+            pk_info = meta.get("partitionKey") or meta.get("partition_key")
+            if isinstance(pk_info, dict):
+                paths = pk_info.get("paths") or []
+                if paths:
+                    pk_path = paths[0]  # '/genre'
+        except Exception as me:
+            logger.warning(f"Could not read container metadata: {me}")
+
+        # 4) Build candidate PK values in priority order
+        candidates = []
+        if pk_path and pk_path.startswith("/"):
+            field = pk_path[1:]  # 'genre'
+            candidates.append(story.get(field))
+        for f in ["genre", "theme", "story_type", "user_id", "id"]:
+            v = story.get(f)
+            if v and v not in candidates:
+                candidates.append(v)
+        candidates.append("general")  # final fallback
+
+        # 5) Try delete with each candidate PK
+        last_err = None
+        for pk in [c for c in candidates if c is not None]:
+            try:
+                logger.info(f"Deleting item {story_id} with partition key '{pk}'")
+                container.delete_item(item=story_id, partition_key=pk)
+                logger.info("Delete succeeded")
+                return {"success": True, "message": f"Story {story_id} deleted successfully"}
+            except Exception as de:
+                last_err = de
+                logger.debug(f"Delete failed with pk '{pk}': {de}")
+
+        detail = f"Failed to delete from database. Tried PKs: {', '.join([str(c) for c in candidates if c is not None])}"
+        if last_err:
+            detail += f". Last error: {str(last_err)}"
+        logger.error(detail)
+        raise HTTPException(status_code=500, detail=detail)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error deleting story {story_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete story: {str(e)}")

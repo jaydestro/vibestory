@@ -676,20 +676,63 @@
                         console.error('Image generation error:', errorMsg);
                     }
                 } else if (generatedImage.image_url) {
+                    // Check if it's a local file path or full URL
+                    let imageUrl = generatedImage.image_url;
+                    
+                    // If it's just a filename, prepend the static path
+                    if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                        imageUrl = `/static/generated/${imageUrl}`;
+                    } else if (imageUrl.startsWith('/static/')) {
+                        // Already has the right path
+                        imageUrl = imageUrl;
+                    }
+                    
                     generatedImg = `
                         <div style="margin-bottom:12px;">
                             <div style="font-weight:600; font-size:.85em; color:#555;">AI Generated Image</div>
-                            <img src="${generatedImage.image_url}"
+                            <img src="${imageUrl}"
                                  alt="Generated"
                                  style="max-width:300px;border-radius:8px;cursor:pointer;"
                                  onerror="this.style.opacity=0.3; this.title='Generated image load error'; console.error('Failed to load image:', this.src);"
-                                 onclick="expandImage(event,'${generatedImage.image_url}','Generated Image')" />
+                                 onclick="expandImage(event,'${imageUrl}','Generated Image')" />
                             <div style="font-size:.7em;color:#666;margin-top:4px;">
-                              Style: ${generatedImage.style || ''} | Size: ${generatedImage.size || ''} | Quality: ${generatedImage.quality || ''}
+                              Style: ${generatedImage.style || story.generated_image_style || ''} | 
+                              Size: ${generatedImage.size || story.generated_image_size || ''} | 
+                              Quality: ${generatedImage.quality || story.generated_image_quality || ''}
+                            </div>
+                        </div>
+                    `;
+                } else if (story.generated_image_filename) {
+                    // Fallback: check if the story itself has a generated image filename
+                    generatedImg = `
+                        <div style="margin-bottom:12px;">
+                            <div style="font-weight:600; font-size:.85em; color:#555;">AI Generated Image</div>
+                            <img src="/static/generated/${story.generated_image_filename}"
+                                 alt="Generated"
+                                 style="max-width:300px;border-radius:8px;cursor:pointer;"
+                                 onerror="this.style.opacity=0.3; this.title='Generated image load error'; console.error('Failed to load image:', this.src);"
+                                 onclick="expandImage(event,'/static/generated/${story.generated_image_filename}','Generated Image')" />
+                            <div style="font-size:.7em;color:#666;margin-top:4px;">
+                              ${story.generated_image_style ? `Style: ${story.generated_image_style}` : ''}
                             </div>
                         </div>
                     `;
                 }
+            } else if (story.generated_image_filename) {
+                // If no generatedImage object but story has the filename
+                generatedImg = `
+                    <div style="margin-bottom:12px;">
+                        <div style="font-weight:600; font-size:.85em; color:#555;">AI Generated Image</div>
+                        <img src="/static/generated/${story.generated_image_filename}"
+                             alt="Generated"
+                             style="max-width:300px;border-radius:8px;cursor:pointer;"
+                             onerror="this.style.opacity=0.3; this.title='Generated image load error'; console.error('Failed to load image:', this.src);"
+                             onclick="expandImage(event,'/static/generated/${story.generated_image_filename}','Generated Image')" />
+                        <div style="font-size:.7em;color:#666;margin-top:4px;">
+                          ${story.generated_image_style ? `Style: ${story.generated_image_style}` : ''}
+                        </div>
+                    </div>
+                `;
             }
             
             // Ensure we have proper source info
@@ -703,13 +746,13 @@
             // Set the result HTML
             result.style.display = 'block';
             result.innerHTML = `
-                <div class="success">Successfully generated story${generatedImage && generatedImage.image_url ? ' & image' : ''}!</div>
+                <div class="success">Successfully generated story${(generatedImage && generatedImage.image_url) || story.generated_image_filename ? ' & image' : ''}!</div>
                 <div class="story-card">
                     ${originalUpload}
                     ${generatedImg}
                     <div class="story-title">${story.title || 'Untitled Story'}</div>
                     <div class="story-meta">
-                        Theme: ${story.genre || 'general'} | Words: ${story.word_count || '0'} | Type: ${story.story_type || 'text'} |
+                        Theme: ${story.genre || story.theme || 'general'} | Words: ${story.word_count || '0'} | Type: ${story.story_type || 'text'} |
                         Created: ${new Date(story.created_at || Date.now()).toLocaleString()}
                     </div>
                     <div class="story-source" style="margin-top:6px;">${sourceInfo}</div>
@@ -971,7 +1014,7 @@
             btn.textContent = wantImage ? 'Generating Story & Image...' : 'Generating...';
             result.style.display = 'block';
             result.innerHTML = wantImage
-                ? '<div class="loading">Generating your story and image... please wait (may take up to a minute)...</div>'
+                ? '<div class="loading">Generating your story and image... please wait (may take up to 30 seconds)...</div>'
                 : '<div class="loading">Generating your story...</div>';
             
             try {
@@ -988,10 +1031,15 @@
                     payload.image_style = document.getElementById('textImageStyle').value;
                     payload.image_size = document.getElementById('textImageSize').value;
                     payload.image_quality = document.getElementById('textImageQuality').value;
+                    
+                    console.log('Image generation requested with settings:', {
+                        style: payload.image_style,
+                        size: payload.image_size,
+                        quality: payload.image_quality
+                    });
                 }
                 
-                // Detailed console info for debugging
-                console.log(`Sending request${wantImage ? ' with image generation' : ''} to /api/stories`);
+                console.log('Sending request payload:', payload);
                 
                 const r = await fetch('/api/stories', {
                     method: 'POST',
@@ -999,11 +1047,9 @@
                     body: JSON.stringify(payload)
                 });
                 
-                // Log raw response for debugging
                 const responseText = await r.text();
-                console.log('Raw response:', responseText);
+                console.log('Raw response (first 500 chars):', responseText.substring(0, 500));
                 
-                // Parse the JSON (again, now that we have the text for debugging)
                 let data;
                 try {
                     data = JSON.parse(responseText);
@@ -1012,16 +1058,33 @@
                     throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
                 }
                 
+                console.log('Parsed response data:', data);
+                
                 if (!(r.ok && data.success)) {
                     console.error('API Error:', data);
                     throw new Error(data.detail || 'Failed to generate story');
                 }
                 
-                // Log the final data before displaying
-                console.log('Processed response data:', data);
+                // Check all possible locations for generated image data
+                let generatedImageData = null;
+                
+                if (data.generated_image) {
+                    console.log('Found generated_image in response:', data.generated_image);
+                    generatedImageData = data.generated_image;
+                } else if (data.story && data.story.generated_image_filename) {
+                    console.log('Found generated_image_filename in story:', data.story.generated_image_filename);
+                    generatedImageData = {
+                        image_url: `/static/generated/${data.story.generated_image_filename}`,
+                        style: data.story.generated_image_style,
+                        size: data.story.generated_image_size,
+                        quality: data.story.generated_image_quality
+                    };
+                } else if (wantImage) {
+                    console.warn('Image was requested but no image data found in response');
+                }
                 
                 // Show generated story and image if available
-                displayStory(data.story, false, data.generated_image || null);
+                displayStory(data.story, false, generatedImageData);
                 e.target.reset();
                 document.getElementById('textGenerateImage').checked = false;
                 toggleTextImageOptions(); // Reset toggle state
@@ -1056,15 +1119,19 @@
                     fd.append('image_style', document.getElementById('uploadImageStyle').value);
                     fd.append('image_size', document.getElementById('uploadImageSize').value);
                     fd.append('image_quality', document.getElementById('uploadImageQuality').value);
+                    
+                    console.log('Image generation requested with settings:', {
+                        style: document.getElementById('uploadImageStyle').value,
+                        size: document.getElementById('uploadImageSize').value,
+                        quality: document.getElementById('uploadImageQuality').value
+                    });
                 }
                 
                 const r = await fetch('/api/stories/image', {method: 'POST', body: fd});
                 
-                // Log raw response for debugging
                 const responseText = await r.text();
-                console.log('Raw image story response:', responseText);
+                console.log('Raw image story response (first 500 chars):', responseText.substring(0, 500));
                 
-                // Parse the JSON (again, now that we have the text for debugging)
                 let data;
                 try {
                     data = JSON.parse(responseText);
@@ -1073,14 +1140,34 @@
                     throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
                 }
                 
-                if (!(r.ok && data.success)) throw new Error(data.detail || 'Failed to generate story from image');
+                console.log('Parsed image story data:', data);
                 
-                // Log the final data before displaying
-                console.log('Processed image story data:', data);
+                if (!(r.ok && data.success)) {
+                    throw new Error(data.detail || 'Failed to generate story from image');
+                }
                 
-                displayStory(data.story, true, data.generated_image || null);
+                // Check all possible locations for generated image data
+                let generatedImageData = null;
+                
+                if (data.generated_image) {
+                    console.log('Found generated_image in response:', data.generated_image);
+                    generatedImageData = data.generated_image;
+                } else if (data.story && data.story.generated_image_filename) {
+                    console.log('Found generated_image_filename in story:', data.story.generated_image_filename);
+                    generatedImageData = {
+                        image_url: `/static/generated/${data.story.generated_image_filename}`,
+                        style: data.story.generated_image_style,
+                        size: data.story.generated_image_size,
+                        quality: data.story.generated_image_quality
+                    };
+                } else if (wantImage) {
+                    console.warn('AI image was requested but no image data found in response');
+                }
+                
+                displayStory(data.story, true, generatedImageData);
                 e.target.reset();
                 document.getElementById('imagePreview').innerHTML = '';
+                document.getElementById('uploadGenerateImage').checked = false;
                 toggleUploadImageOptions(); // Reset toggle state
                 await loadStories();
             } catch (err) {
