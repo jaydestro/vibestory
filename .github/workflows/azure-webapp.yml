@@ -1,0 +1,44 @@
+name: Deploy VibeStory to Azure Web App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: c:\Users\jagord\Downloads\CosmosDBDemoApp\vibestory
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Optional: basic import check
+      - name: Smoke test
+        run: python -c "import fastapi, uvicorn, azure.cosmos, openai; print('Deps OK')"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibestory
+          path: |
+            c:\Users\jagord\Downloads\CosmosDBDemoApp\vibestory
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: c:\Users\jagord\Downloads\CosmosDBDemoApp\vibestory
